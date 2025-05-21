@@ -11,19 +11,19 @@ import plotly.express as px
 def plot_global_scores(scores_df, list_metrics=None):
     
     if list_metrics is None:
-        list_metrics = [c for c in scores_df.columns if c not in ["count", "trial"]]
+        list_metrics = [c for c in scores_df.columns if c not in ["count", "model"]]
     
     scores_df = scores_df.copy().drop('count', axis=1)
     scores_df = (
-        scores_df[["trial"] + list_metrics]
-        .melt(id_vars="trial", value_name="metric_value", var_name="metric_name")
+        scores_df[["model"] + list_metrics]
+        .melt(id_vars="model", value_name="metric_value", var_name="metric_name")
     )
     
     fig = px.bar(
         scores_df,
         x="metric_name",
         y="metric_value",
-        color="trial",
+        color="model",
         barmode="group"  # Cette ligne ne fait rien ici, déplacée plus bas
     )
     
@@ -39,12 +39,12 @@ def plot_global_scores(scores_df, list_metrics=None):
     
     return fig
 
-def plot_scores_per_ts(scores_per_ts_df, list_metrics=None):
+def plot_scores_per_ts(scores_per_ts_df, column_id, list_metrics=None):
     if list_metrics is None:
-        list_metrics = [c for c in scores_per_ts_df.columns if c not in ["count", "trial", "id"]]
+        list_metrics = [c for c in scores_per_ts_df.columns if c not in ["count", "model", column_id]]
     
     melted = scores_per_ts_df.melt(
-        id_vars=["id", "trial"], 
+        id_vars=[column_id, "model"], 
         var_name="metric", 
         value_name="value"
     )
@@ -55,94 +55,115 @@ def plot_scores_per_ts(scores_per_ts_df, list_metrics=None):
         melted,
         x="metric",
         y="value",
-        color="trial",
+        color="model",
         points="all",
-        title="Distribution of Metrics per Time Series by Trial",
+        title="Distribution of metrics per time series by model",
         template="plotly_white",
         width=800,
         height=500,
-        hover_data="id"
+        hover_data=column_id
     )
     return fig
 
+def plot_forecasts_uid(
+    uid,
+    forecasts_df, 
+    column_id,
+    column_date,
+    column_target,
+    map_columns_forecasts, 
+    scores_per_ts_df,
+    metric,
+    train_tail,
+    map_color_forecasts=None,
+    as_percentage=False
+    ):
+    
+    forecast_uid_df = forecasts_df[forecasts_df[column_id] == uid]
+    
+    for i, (column_name, column_value) in enumerate(map_columns_forecasts.items()):
+        
+        if i == 0:
+            train_sub = forecast_uid_df[forecast_uid_df[column_value].isna()].sort_values(column_date).copy()
+            test_sub = forecast_uid_df[~forecast_uid_df[column_value].isna()].sort_values(column_date).copy()
+            train_tail_df = train_sub.tail(train_tail)
 
-def plot_forecasts_with_train(train_df, test_df, forecast_df, scores_per_ts_df=None, metric='MAE', ids_to_plot=None, train_tail=30):
-    """
-    Plot the forecast, test, and last steps of train for multiple time series IDs,
-    with train → test → forecast lines visually connected. Includes a selected metric in the plot title.
+            if not train_tail_df.empty and not test_sub.empty:
+                last_train_point = train_tail_df.iloc[[-1]]
+                test_sub = pd.concat([last_train_point, test_sub])
 
-    Parameters:
-    - train_df: DataFrame containing training data with 'id', 'date', 'sales'
-    - test_df: DataFrame containing test data with 'id', 'date', 'sales'
-    - forecast_df: DataFrame containing forecasts with 'id', 'date', 'TimeGPT'
-    - scores_per_ts_df: DataFrame with scores per 'id', should contain columns like 'MAE', 'RMSE', etc.
-    - metric: str, the metric to include in the plot title (e.g. 'MAE', 'RMSE', 'MAPE', 'R2', 'count')
-    - ids_to_plot: list of IDs to plot (default = all unique IDs from test_df)
-    - train_tail: number of last train steps to display
-    """
-    if ids_to_plot is None:
-        ids_to_plot = test_df['id'].unique()
+            fig = go.Figure()
 
-    for uid in ids_to_plot:
-        train_sub = train_df[train_df['id'] == uid].sort_values("date").copy()
-        test_sub = test_df[test_df['id'] == uid].sort_values("date").copy()
-        forecast_sub = forecast_df[forecast_df['id'] == uid].sort_values("date").copy()
+            # Plot train target
+            fig.add_trace(go.Scatter(
+                x=train_tail_df[column_date], y=train_tail_df[column_target],
+                line=dict(color="lightgray"),
+                name=f"Train {column_target}"
+            ))
 
-        train_tail_df = train_sub.tail(train_tail)
+            # Plot test target
+            fig.add_trace(go.Scatter(
+                x=test_sub[column_date], y=test_sub[column_target],
+                line=dict(color="royalblue"),
+                name=f"Test {column_target}"
+            ))
 
-        if not train_tail_df.empty and not test_sub.empty:
-            last_train_point = train_tail_df.iloc[[-1]]
-            test_sub = pd.concat([last_train_point, test_sub])
+        forecast_sub = forecast_uid_df[~forecast_uid_df[column_value].isna()].sort_values(column_date).copy()
 
         if not test_sub.empty and not forecast_sub.empty:
             first_test_point = test_sub.iloc[[0]].copy()
-            first_test_point["TimeGPT"] = None
-            forecast_sub = pd.concat([first_test_point[["date", "TimeGPT"]], forecast_sub])
+            first_test_point[column_value] = None
+            forecast_sub = pd.concat([first_test_point[[column_date, column_value]], forecast_sub])
+        
+        metric_value = None
+        if scores_per_ts_df is not None:
+            row_match = scores_per_ts_df[
+                (scores_per_ts_df[column_id] == uid) &
+                (scores_per_ts_df["model"] == column_value)
+            ]
+            if not row_match.empty and metric in row_match.columns:
+                metric_value = row_match.iloc[0][metric]
 
-        fig = go.Figure()
-
-        fig.add_trace(go.Scatter(
-            x=train_tail_df['date'], y=train_tail_df['sales'],
-            line=dict(color="lightgray"),
-            name="Train Sales"
-        ))
-
-        fig.add_trace(go.Scatter(
-            x=test_sub['date'], y=test_sub['sales'],
-            line=dict(color="coral"),
-            name="Test Sales"
-        ))
-
-        fig.add_trace(go.Scatter(
-            x=forecast_sub['date'], y=forecast_sub['TimeGPT'],
-            line=dict(color="coral", dash="dash"),
-            name="Forecast"
-        ))
-
-        # Compose title
-        if scores_per_ts_df is not None and uid in scores_per_ts_df['id'].values:
-            row = scores_per_ts_df[scores_per_ts_df['id'] == uid].iloc[0]
-            metric_value = row.get(metric, None)
-            if pd.notnull(metric_value):
-                title = f"ID: {uid} | {metric}: {metric_value:.2f}"
-            else:
-                title = f"ID: {uid} | {metric}: N/A"
+        # Format legend label
+        if metric_value is not None:
+            display_value = metric_value * 100 if as_percentage else metric_value
+            suffix = "%" if as_percentage else ""
+            legend_label = f"{column_name} ({metric}: {display_value:.2f}{suffix})"
         else:
-            title = f"Forecast with Train/Test Split for ID: {uid}"
+            legend_label = column_name
 
-        fig.update_layout(
-            title=title,
-            xaxis_title="Date",
-            yaxis_title="Sales",
-            template="plotly_white",
-            width=800,
-            height=400
-        )
+        # Assign color if provided
+        color = map_color_forecasts.get(column_value, None) if map_color_forecasts else None
+        
+        fig.add_trace(go.Scatter(
+            x=forecast_sub[column_date],
+            y=forecast_sub[column_value],
+            line=dict(dash="dash", color=color),
+            name=legend_label
+        ))
 
-        fig.show()
+    fig.update_layout(
+        title=f"Forecast for ID: {uid}",
+        xaxis_title=column_date,
+        yaxis_title=column_target,
+        template="plotly_white",
+        width=1000,
+        height=500
+    )
 
+    return fig
 
-def plot_forecast_with_ci(train_df, test_df, forecast_df, uid, level=9, train_tail=30):
+def plot_forecast_with_ci(
+    forecast_df, 
+    column_id,
+    column_date,
+    column_target,
+    column_forecast,
+    uid, 
+    model_name,
+    level=90, 
+    train_tail=30
+    ):
     """
     Plot the forecast with confidence intervals, actual test data, and training data for a given time series ID.
 
@@ -154,13 +175,14 @@ def plot_forecast_with_ci(train_df, test_df, forecast_df, uid, level=9, train_ta
     - level: Confidence interval level (e.g., 90 for 90% interval).
     """
     # Extract the quantile boundaries based on the level
-    lower_q = f"TimeGPT-lo-{level}"
-    upper_q = f"TimeGPT-hi-{level}"
+    lower_q = f"{model_name}-lo-{level}"
+    upper_q = f"{model_name}-hi-{level}"
 
     # Subset the data for the specific ID
-    fc = forecast_df[forecast_df["id"] == uid]
-    test = test_df[test_df["id"] == uid]
-    train = train_df[train_df["id"] == uid]
+    forecast_uid_df = forecast_df[forecast_df[column_id] == uid]
+    fc = forecast_uid_df[forecast_df[lower_q].notna()]
+    test = forecast_uid_df[forecast_df[lower_q].notna()]
+    train = forecast_uid_df[forecast_df[lower_q].isna()]
 
     # Keep only the last `train_tail` rows
     train = train.tail(train_tail)
@@ -171,16 +193,16 @@ def plot_forecast_with_ci(train_df, test_df, forecast_df, uid, level=9, train_ta
         test = pd.concat([last_train_point, test])
    
         first_test_point = train.iloc[[-1]].copy()
-        first_test_point["TimeGPT"] = last_train_point["sales"] 
-        first_test_point[lower_q] = last_train_point["sales"]
-        first_test_point[upper_q] = last_train_point["sales"]
-        fc = pd.concat([first_test_point[["date", "TimeGPT", lower_q, upper_q]], fc])
+        first_test_point[column_forecast] = last_train_point[column_target] 
+        first_test_point[lower_q] = last_train_point[column_target]
+        first_test_point[upper_q] = last_train_point[column_target]
+        fc = pd.concat([first_test_point[[column_date, column_forecast, lower_q, upper_q]], fc])
 
     fig = go.Figure()
 
     # Plot recent train data
     fig.add_trace(go.Scatter(
-        x=train["date"], y=train["sales"],
+        x=train[column_date], y=train[column_target],
         mode="lines",
         name="Train Sales (last steps)",
         line=dict(color="lightgray")
@@ -188,7 +210,7 @@ def plot_forecast_with_ci(train_df, test_df, forecast_df, uid, level=9, train_ta
 
     # Plot test (actual) data
     fig.add_trace(go.Scatter(
-        x=test["date"], y=test["sales"],
+        x=test[column_date], y=test[column_target],
         mode="lines",
         name="Test Sales",
         line=dict(color="coral")
@@ -196,7 +218,7 @@ def plot_forecast_with_ci(train_df, test_df, forecast_df, uid, level=9, train_ta
 
     # Plot lower bound of confidence interval
     fig.add_trace(go.Scatter(
-        x=fc["date"], y=fc[lower_q],
+        x=fc[column_date], y=fc[lower_q],
         mode="lines",
         line=dict(width=0),
         name=f"{lower_q}",
@@ -205,7 +227,7 @@ def plot_forecast_with_ci(train_df, test_df, forecast_df, uid, level=9, train_ta
 
     # Plot upper bound and fill area between quantiles
     fig.add_trace(go.Scatter(
-        x=fc["date"], y=fc[upper_q],
+        x=fc[column_date], y=fc[upper_q],
         mode="lines",
         line=dict(width=0),
         fill="tonexty",
@@ -215,7 +237,7 @@ def plot_forecast_with_ci(train_df, test_df, forecast_df, uid, level=9, train_ta
 
     # Plot forecast
     fig.add_trace(go.Scatter(
-        x=fc["date"], y=fc["TimeGPT"],
+        x=fc[column_date], y=fc[column_forecast],
         mode="lines",
         name="Forecast",
         line=dict(color="coral", dash="dash")
@@ -223,8 +245,8 @@ def plot_forecast_with_ci(train_df, test_df, forecast_df, uid, level=9, train_ta
 
     fig.update_layout(
         title=f"Forecast with {level}% CI for ID: {uid}",
-        xaxis_title="Date",
-        yaxis_title="Sales",
+        xaxis_title=column_date,
+        yaxis_title=column_target,
         template="plotly_white",
         width=1000,
         height=500
