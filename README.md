@@ -6,13 +6,13 @@
 
 ## Objective
 
-This repository showcases advanced time series forecasting techniques using Nixtla’s libraries, with a focus on deep learning models such as **TimeLLM**. It includes traditional statistical models, neural models, performance benchmarking, and explainability components. All models are trained and evaluated on the M5 forecasting dataset.
+This repository showcases advanced time series forecasting techniques using Nixtla’s libraries, with a focus on deep learning models such as TimeLLM. It includes traditional statistical models, neural models, performance benchmarking, and explainability components. All models are trained and evaluated on the M5 forecasting dataset.
 
 For more context and insights, check out the companion blog post on [The AI Practitionner](https://aipractitioner.substack.com/).
 
 ## Project Description
 
-This project provides a unified pipeline for exploring, training, and evaluating time series forecasting models using the M5 dataset. It integrates a wide range of models — from classical baselines to state-of-the-art LLM-based models — through the **Nixtla ecosystem**, including:
+This project provides a unified pipeline for exploring, training, and evaluating time series forecasting models using the M5 dataset. It integrates a wide range of models, from classical baselines to state-of-the-art LLM-based models, through the **Nixtla ecosystem**, including:
 
 * **`statsforecast`** for fast statistical models (AutoARIMA, ETS, Theta)
 * **`neuralforecast`** for neural models like NHITS and NBEATS
@@ -30,7 +30,6 @@ data/
 ├── sales_train_validation.csv
 ├── sales_train_evaluation.csv
 ├── sell_prices.csv
-├── sample_submission.csv
 
 notebooks/
 ├── 01_data_processing.ipynb             # Data preparation
@@ -38,8 +37,6 @@ notebooks/
 ├── 03_model_training_dl.ipynb           # Deep learning models (e.g., NHITS, NBEATS)
 ├── 04_model_training_timellm.ipynb      # TimeLLM training and inference
 ├── 05_perf_comparison.ipynb             # Performance comparison across models
-├── model_explainability.ipynb           # SHAP-based explainability
-├── model_training.ipynb                 # Generic training script
 
 src/
 ├── data_processing.py                   # Data loading and formatting
