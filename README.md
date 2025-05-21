@@ -115,7 +115,6 @@ Make sure you're using Python ≥3.11 for full compatibility.
    * `03_model_training_dl.ipynb`: Neural network models
    * `04_model_training_timellm.ipynb`: TimeLLM via Nixtla
 3. Compare results in `05_perf_comparison.ipynb`.
-4. Optionally, run `model_explainability.ipynb` to analyze forecast drivers.
 
 ## Notes
 
