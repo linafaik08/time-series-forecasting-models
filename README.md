@@ -6,23 +6,22 @@
 
 ## Objective
 
-This repository showcases advanced time series forecasting techniques using Nixtla’s libraries, with a focus on deep learning models such as TimeLLM. It includes traditional statistical models, neural models, performance benchmarking, and explainability components. All models are trained and evaluated on the M5 forecasting dataset.
+This repository showcases advanced time series forecasting techniques using Nixtla’s libraries, with a focus on deep learning models such as TimeLLM. It includes traditional statistical models, transformer-based models (TimeGPT), performance benchmarking, and explainability components. All models are trained and evaluated on the M5 forecasting dataset.
 
 For more context and insights, check out the companion blog post on [The AI Practitionner](https://aipractitioner.substack.com/).
+
 
 ## Project Description
 
 This project provides a unified pipeline for exploring, training, and evaluating time series forecasting models using the M5 dataset. It integrates a wide range of models, from classical baselines to state-of-the-art LLM-based models, through the **Nixtla ecosystem**, including:
 
-* **`statsforecast`** for fast statistical models (AutoARIMA, ETS, Theta)
-* **`neuralforecast`** for neural models like NHITS and NBEATS
-* **`TimeLLM`**, a language-model-based forecaster via the Nixtla API
-* **`mlforecast`** for gradient-boosted models using LightGBM
-* **Explainability tools** to interpret model outputs (e.g., SHAP)
+* **`statsforecast`** for statistical models (AutoARIMA, ETS, Theta)
+* **`neuralforecast`** for deep learning models (NHITS, NBEATS)
+* **`TimeLLM`** and **`TimeGPT`** via the Nixtla API
+* **`mlforecast`** for LightGBM-based forecasts
+* **Explainability** via SHAP and custom visualizations
 
-The goal is to provide robust model comparisons, practical usage patterns, and reproducible pipelines for real-world forecasting tasks.
-
-### Code Structure
+## Code Structure
 
 ```
 data/
@@ -32,23 +31,25 @@ data/
 ├── sell_prices.csv
 
 notebooks/
-├── 01_data_processing.ipynb             # Data preparation
-├── 02_model_training_stats.ipynb        # Traditional statistical models
-├── 03_model_training_dl.ipynb           # Deep learning models (e.g., NHITS, NBEATS)
-├── 04_model_training_timellm.ipynb      # TimeLLM training and inference
-├── 05_perf_comparison.ipynb             # Performance comparison across models
+├── 01_data_processing.ipynb              # Data loading & preprocessing
+├── 02_model_training_stats.ipynb         # Statistical models (ARIMA, ETS)
+├── 03_model_training_dl.ipynb            # Deep learning models (NHITS, NBEATS)
+├── 04_model_training_timellm.ipynb       # TimeLLM (language-based model)
+├── 05_model_training_timegpt.ipynb       # TimeGPT (transformer-based model)
+├── 06_model_explainability.ipynb         # SHAP & insights on predictions
+├── 07_perf_comparison.ipynb              # Final performance benchmarking
 
 src/
-├── data_processing.py                   # Data loading and formatting
-├── training.py                          # Model training logic
-├── metrics.py                           # Custom evaluation metrics
-├── viz.py                               # Visualization utilities
+├── data_processing.py                    # Data preparation logic
+├── training.py                           # Model training functions
+├── metrics.py                            # Custom metric implementations
+├── viz.py                                # Visualization utilities
 
 output/
-├── [Generated forecasts and plots]
+├── [Generated forecasts, plots, metrics]
 
-config.py                                # Config file with Nixtla API key and paths
-requirements.txt                         # Python dependencies
+config.py                                 # Global paths and API keys
+requirements.txt                          # Python dependencies
 README.md
 ```
 
@@ -56,8 +57,7 @@ README.md
 
 ### 1. Data
 
-Please download the **M5 Forecasting - Accuracy** dataset from Kaggle:
-[https://www.kaggle.com/competitions/m5-forecasting-accuracy/data](https://www.kaggle.com/competitions/m5-forecasting-accuracy/data)
+Download the **M5 Forecasting - Accuracy** dataset from Kaggle:[https://www.kaggle.com/competitions/m5-forecasting-accuracy/data](https://www.kaggle.com/competitions/m5-forecasting-accuracy/data)
 
 Place the following files in the `data/` directory:
 
@@ -65,11 +65,12 @@ Place the following files in the `data/` directory:
 * `sales_train_validation.csv`
 * `sales_train_evaluation.csv`
 * `sell_prices.csv`
-* `sample_submission.csv`
+* `sample_submission.csv` *(optional)*
 
-### 2. Nixtla API Key (for TimeLLM only)
 
-To use the **TimeLLM** model, set your Nixtla API key in `config.py`:
+### 2. Nixtla API Key (for TimeLLM & TimeGPT)
+
+To run TimeLLM or TimeGPT models, open `config.py` and set your Nixtla API key:
 
 ```python
 NIXTLA_API_KEY = "your_nixtla_api_key_here"
@@ -77,47 +78,53 @@ NIXTLA_API_KEY = "your_nixtla_api_key_here"
 
 You can obtain a key from: [https://nixtla.io/](https://nixtla.io/)
 
-### 3. Requirements
 
-Install all required dependencies using:
+### 3. Installation
+
+Install all required packages with:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Main dependencies include:
+Main dependencies:
 
 ```
-plotly
 pandas
 numpy
-nbformat
+plotly
 tqdm
-scikit-learn
-nixtla
-shap
 matplotlib
-neuralforecast
-transformers
-statsforecast
-mlforecast
+nbformat
+scikit-learn
+shap
 lightgbm
+statsforecast
+neuralforecast
+mlforecast
+transformers
+nixtla
 ```
 
-Make sure you're using Python ≥3.11 for full compatibility.
+Python ≥3.11 is recommended for compatibility.
 
 ## Running the Project
 
-1. Start with `01_data_processing.ipynb` to prepare the dataset.
-2. Train and evaluate models:
+Run the following notebooks in order:
 
-   * `02_model_training_stats.ipynb`: Statistical models
-   * `03_model_training_dl.ipynb`: Neural network models
-   * `04_model_training_timellm.ipynb`: TimeLLM via Nixtla
-3. Compare results in `05_perf_comparison.ipynb`.
+1. `01_data_processing.ipynb` – Prepare the M5 dataset using `src/data_processing.py`
+2. Train models:
+
+   * `02_model_training_stats.ipynb` – Traditional models via `statsforecast`
+   * `03_model_training_dl.ipynb` – Deep learning models with `neuralforecast`
+   * `04_model_training_timellm.ipynb` – Run TimeLLM via Nixtla API
+   * `05_model_training_timegpt.ipynb` – Run TimeGPT (transformer forecaster)
+3. `06_model_explainability.ipynb` – Visualize and interpret forecasts (SHAP etc.)
+4. `07_perf_comparison.ipynb` – Compare all model performances and draw conclusions
+
 
 ## Notes
 
-* TimeLLM calls require an active internet connection and a valid Nixtla API key.
-* All forecast results and evaluation metrics are stored in the `output/` directory.
-* This repository is modular and easy to extend with additional models or datasets.
+* TimeGPT require an internet connection and valid API key.
+* All generated outputs (forecasts, plots, comparisons) are stored in the `output/` directory.
+* The code is modular and designed for easy extension to other datasets or models.
